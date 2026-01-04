@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>捷奧不馴 Travel Pro</title>
+    <!-- 使用 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 使用 React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- 使用 Lucide 圖標 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: black; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes pulse-purple {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        .animate-pulse-purple { animation: pulse-purple 2s infinite; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // 圖標元件
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => { lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('home');
+            const [currentTime, setCurrentTime] = useState(new Date());
+            const [isItineraryEditing, setIsItineraryEditing] = useState(false);
+            const [isTransportEditing, setIsTransportEditing] = useState(false);
+            const [isPackingEditing, setIsPackingEditing] = useState(false);
+            const [isSouvenirEditing, setIsSouvenirEditing] = useState(false);
+
+            // 數據狀態
+            const [itinerary, setItinerary] = useState([
+                { date: '2026-01-06', day: 'Day 1', events: [{ id: 101, time: '23:45', location: '臺灣桃園國際機場', note: '桃園第一航廈' }] },
+                { date: '2026-01-07', day: 'Day 2', events: [
+                    { id: 201, time: '07:40', location: '布拉格國際機場', note: '抵達' },
+                    { id: 202, time: '09:49', location: 'Grandior Hotel Prague', note: '放行李' },
+                    { id: 203, time: '11:36', location: '老城廣場', note: '' },
+                    { id: 204, time: '15:01', location: '布拉格天文鐘', note: '' },
+                    { id: 205, time: '18:09', location: 'Bredovský Dvůr', note: '晚餐' }
+                ]},
+                { date: '2026-01-10', day: 'Day 5', events: [
+                    { id: 501, time: '06:37', location: '布拉格火車總站', note: 'RJ53' },
+                    { id: 502, time: '10:49', location: '維也納中央車站', note: '抵達' }
+                ]},
+                { date: '2026-01-11', day: 'Day 6', events: [
+                    { id: 601, time: '05:57', location: '維也納中央車站', note: 'IC540' },
+                    { id: 602, time: '09:47', location: 'Hallstatt', note: '抵達' }
+                ]}
+            ]);
+
+            const [transportation, setTransportation] = useState([
+                { id: 1, date: '1/10', from: 'PRG', fromFull: '布拉格 (06:37)', to: 'VIE', toFull: '維也納 (10:49)', trainNo: 'RJ53', platform: '--', carNo: '368', seatNo: '32, 38' },
+                { id: 2, date: '1/11', from: 'VIE', fromFull: '維也納 (05:57)', to: 'HAL', toFull: '哈爾斯塔特 (09:47)', trainNo: 'IC540/R70', platform: '--', carNo: '4', seatNo: '131, 135' }
+            ]);
+
+            const [packingList, setPackingList] = useState([
+                { id: 1, item: '護照/機票', checked: true },
+                { id: 2, item: '歐元現金', checked: false }
+            ]);
+
+            const [souvenirs, setSouvenirs] = useState([]);
+
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            const pragueTime = useMemo(() => {
+                const offset = 7;
+                return new Date(currentTime.getTime() - (offset * 60 * 60 * 1000));
+            }, [currentTime]);
+
+            const tripStatus = useMemo(() => {
+                const nowStr = pragueTime.getHours().toString().padStart(2, '0') + ":" + pragueTime.getMinutes().toString().padStart(2, '0');
+                const today = pragueTime.toISOString().split('T')[0];
+                const dayPlan = itinerary.find(d => d.date === today);
+                if (!dayPlan) return today < itinerary[0].date ? "旅程即將開始..." : "旅程已結束";
+                const past = dayPlan.events.filter(e => e.time <= nowStr).sort((a,b) => b.time.localeCompare(a.time));
+                return past.length > 0 ? `${nowStr} ${past[0].location}` : "今日旅程尚未開始";
+            }, [pragueTime, itinerary]);
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen pb-24 text-white">
+                    {activeTab === 'home' && (
+                        <div className="p-6 space-y-8 animate-in fade-in duration-500">
+                            <header className="flex justify-between items-center py-4">
+                                <h1 className="text-3xl font-black italic">TRAV <span className="text-purple-600">PRO</span></h1>
+                                <Icon name="globe" className="text-purple-500" />
+                            </header>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-gray-900 border border-gray-800 p-5 rounded-[2rem]">
+                                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">台北 (TW)</p>
+                                    <h3 className="text-2xl font-black">{currentTime.getHours().toString().padStart(2, '0')}:{currentTime.getMinutes().toString().padStart(2, '0')}</h3>
+                                </div>
+                                <div className="bg-purple-900/20 border border-purple-500/40 p-5 rounded-[2rem]">
+                                    <p className="text-[10px] text-purple-400 uppercase font-bold tracking-widest">捷奧 (EU)</p>
+                                    <h3 className="text-2xl font-black">{pragueTime.getHours().toString().padStart(2, '0')}:{pragueTime.getMinutes().toString().padStart(2, '0')}</h3>
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-br from-purple-900/40 to-black border border-purple-500/20 p-8 rounded-[2.5rem] relative overflow-hidden">
+                                <div className="absolute -right-10 -top-10 w-40 h-40 bg-purple-600/10 blur-[80px] rounded-full"></div>
+                                <h2 className="text-2xl font-bold leading-tight">{tripStatus}</h2>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <button onClick={() => setActiveTab('itinerary')} className="bg-gray-900 h-32 rounded-[2rem] flex flex-col items-center justify-center gap-2 border border-gray-800">
+                                    <Icon name="calendar" className="text-purple-500" />
+                                    <span className="text-xs font-bold uppercase tracking-widest">行程表</span>
+                                </button>
+                                <button onClick={() => setActiveTab('transport')} className="bg-gray-900 h-32 rounded-[2rem] flex flex-col items-center justify-center gap-2 border border-gray-800">
+                                    <Icon name="navigation" className="text-blue-500" />
+                                    <span className="text-xs font-bold uppercase tracking-widest">交通指南</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'itinerary' && (
+                        <div className="p-6 space-y-6">
+                            <h2 className="text-2xl font-black">詳細行程表</h2>
+                            {itinerary.map((day, dIdx) => (
+                                <div key={dIdx} className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <span className="bg-purple-900 px-3 py-1 rounded-full text-[10px] font-black uppercase">{day.day}</span>
+                                        <span className="text-gray-500 text-xs font-mono">{day.date}</span>
+                                    </div>
+                                    <div className="ml-2 border-l border-gray-800 pl-6 space-y-6">
+                                        {day.events.map(event => (
+                                            <div key={event.id} className={`p-5 rounded-[2rem] border ${tripStatus.includes(event.location) ? 'border-purple-500 bg-purple-900/10 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : 'border-gray-800 bg-gray-900/40'}`}>
+                                                <div className="text-purple-500 font-mono text-[10px] font-black">{event.time}</div>
+                                                <h4 className="font-bold">{event.location}</h4>
+                                                {event.note && <p className="text-gray-500 text-[10px] mt-1">{event.note}</p>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {activeTab === 'transport' && (
+                        <div className="p-6 space-y-6">
+                            <h2 className="text-2xl font-black">交通票券</h2>
+                            {transportation.map(t => (
+                                <div key={t.id} className="bg-white rounded-[2.5rem] overflow-hidden text-black mb-6 shadow-2xl">
+                                    <div className="bg-purple-600 p-6 text-white text-center relative">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="text-[9px] font-black px-2 py-1 bg-white/20 rounded uppercase">{t.date}</span>
+                                            <Icon name="train" size={20} />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-2xl font-black w-20">{t.from}</h3>
+                                            <div className="flex-1 border-t-2 border-dashed border-white/40 relative mx-2">
+                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 px-3 py-0.5 border border-white/20 rounded-full text-[10px] font-black">{t.trainNo}</div>
+                                            </div>
+                                            <h3 className="text-2xl font-black w-20">{t.to}</h3>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-6 grid grid-cols-3 text-center border-t border-gray-100 relative">
+                                        <div className="absolute -top-3 -left-3 w-6 h-6 bg-black rounded-full"></div>
+                                        <div className="absolute -top-3 -right-3 w-6 h-6 bg-black rounded-full"></div>
+                                        <div><p className="text-[8px] text-gray-400 font-black mb-1">PLAT</p><p className="font-black text-xl">{t.platform}</p></div>
+                                        <div className="border-x border-gray-100"><p className="text-[8px] text-gray-400 font-black mb-1">CAR</p><p className="font-black text-xl">{t.carNo}</p></div>
+                                        <div><p className="text-[8px] text-gray-400 font-black mb-1">SEAT</p><p className="font-black text-xl">{t.seatNo}</p></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {activeTab === 'packing' && (
+                        <div className="p-6 space-y-6">
+                            <h2 className="text-2xl font-black">行李檢查</h2>
+                            {packingList.map(item => (
+                                <div key={item.id} onClick={() => setPackingList(packingList.map(p => p.id === item.id ? {...p, checked: !p.checked} : p))} className="flex items-center gap-4 p-5 bg-gray-900 rounded-[2rem] border border-gray-800">
+                                    <div className={`p-1 rounded-full border-2 ${item.checked ? 'bg-purple-500 border-purple-500' : 'border-gray-700'}`}>
+                                        <Icon name="check" size={14} className={item.checked ? 'text-white' : 'text-transparent'} />
+                                    </div>
+                                    <span className={`font-bold ${item.checked ? 'text-gray-600 line-through' : 'text-white'}`}>{item.item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {activeTab === 'souvenir' && (
+                        <div className="p-6 space-y-6">
+                            <h2 className="text-2xl font-black text-white">伴手禮預算</h2>
+                            <button onClick={() => setSouvenirs([...souvenirs, {id: Date.now(), person: '對象', gift: '禮物', bought: false}])} className="w-full py-4 bg-purple-900/20 border border-purple-500/20 rounded-2xl text-purple-400 font-black mb-4">+ 新增項目</button>
+                            {souvenirs.map(s => (
+                                <div key={s.id} className="p-6 bg-gray-900 border border-gray-800 rounded-[2.5rem] flex items-center justify-between shadow-lg">
+                                    <div className="flex items-center gap-4">
+                                        <div onClick={() => setSouvenirs(souvenirs.map(i=>i.id===s.id?{...i, bought:!i.bought}:i))} className={`p-4 rounded-2xl ${s.bought ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-500'}`}>
+                                            <Icon name="gift" />
+                                        </div>
+                                        <div>
+                                            <p className="text-purple-500 text-[9px] font-black uppercase tracking-widest">{s.person}</p>
+                                            <h4 className={`text-lg font-bold ${s.bought ? 'text-gray-600 line-through' : 'text-white'}`}>{s.gift}</h4>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setSouvenirs(souvenirs.filter(i=>i.id!==s.id))}><Icon name="trash-2" size={18} className="text-gray-800"/></button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* 底部導航 */}
+                    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] px-4 py-2 z-50 flex justify-between items-center shadow-2xl">
+                        <NavItem id="home" icon="map-pin" active={activeTab === 'home'} onClick={setActiveTab} />
+                        <NavItem id="itinerary" icon="calendar" active={activeTab === 'itinerary'} onClick={setActiveTab} />
+                        <div className="h-8 w-[1px] bg-white/10 mx-1"></div>
+                        <NavItem id="transport" icon={Navigation} active={activeTab === 'transport'} onClick={setActiveTab} />
+                        <NavItem id="packing" icon="package" active={activeTab === 'packing'} onClick={setActiveTab} />
+                        <NavItem id="souvenir" icon="gift" active={activeTab === 'souvenir'} onClick={setActiveTab} />
+                    </nav>
+                </div>
+            );
+        };
+
+        const NavItem = ({ id, icon, active, onClick }) => (
+            <button onClick={() => onClick(id)} className={`p-4 transition-all duration-300 rounded-full ${active ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-500'}`}>
+                <i data-lucide={id === 'transport' ? 'navigation' : icon} style={{ width: 18, height: 18 }}></i>
+            </button>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
